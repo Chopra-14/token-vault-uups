@@ -1,0 +1,13 @@
+version: 1.0
+
+setup:
+  commands:
+    - npm install
+
+verification:
+  commands:
+    - npx hardhat compile
+
+test:
+  commands:
+    - npx hardhat test
