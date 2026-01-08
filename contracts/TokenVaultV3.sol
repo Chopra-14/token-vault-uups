@@ -2,35 +2,27 @@
 pragma solidity ^0.8.20;
 
 import "./TokenVaultV2.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
 contract TokenVaultV3 is TokenVaultV2 {
-    bool public paused;
+    using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    function initializeV3() public reinitializer(3) {
-        paused = false;
+    function initializeV3() public reinitializer(3) {}
+
+    function withdrawAll() external {
+        uint256 bal = balances[msg.sender];
+        require(bal > 0, "No balance");
+
+        balances[msg.sender] = 0;
+        token.safeTransfer(msg.sender, bal);
     }
 
-    function pause() external onlyOwner {
-        paused = true;
-    }
-
-    function unpause() external onlyOwner {
-        paused = false;
-    }
-
-    function deposit(uint256 amount)
+    function getVersion()
         public
+        pure
         override
+        returns (string memory)
     {
-        require(!paused, "Paused");
-        super.deposit(amount);
-    }
-
-    function withdraw(uint256 amount)
-        public
-        override
-    {
-        require(!paused, "Paused");
-        super.withdraw(amount);
+        return "V3";
     }
 }

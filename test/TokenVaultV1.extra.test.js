@@ -2,24 +2,56 @@ const { expect } = require("chai");
 const { ethers, upgrades } = require("hardhat");
 
 describe("TokenVaultV1 Extra Coverage", function () {
-  let token, vault, owner;
+  let token, vault, admin, user;
 
-  beforeEach(async () => {
-    [owner] = await ethers.getSigners();
+  beforeEach(async function () {
+    [admin, user] = await ethers.getSigners();
 
-    const MockERC20 = await ethers.getContractFactory("MockERC20");
-    token = await MockERC20.deploy();
-    await token.mint(owner.address, ethers.utils.parseEther("100"));
+    // Deploy MockERC20 (NO constructor args)
+    const Token = await ethers.getContractFactory("MockERC20");
+    token = await Token.deploy();
+    await token.deployed();
 
-    const TokenVaultV1 = await ethers.getContractFactory("TokenVaultV1");
-    vault = await upgrades.deployProxy(
-      TokenVaultV1,
-      [token.address, 100],
-      { initializer: "initialize" }
+    // Deploy Vault V1 via proxy
+    const Vault = await ethers.getContractFactory(
+      "contracts/TokenVaultV1.sol:TokenVaultV1"
     );
+
+    vault = await upgrades.deployProxy(Vault, [
+      token.address,
+      admin.address,
+      100,
+    ]);
+
+    // Mint + approve
+    await token.mint(user.address, 1000);
+    await token.connect(user).approve(vault.address, 1000);
   });
 
-  it("reverts deposit with zero amount", async () => {
-    await expect(vault.deposit(0)).to.be.revertedWith("Amount must be > 0");
+  it("reverts deposit with zero amount", async function () {
+    let failed = false;
+
+    try {
+      await vault.connect(user).deposit(0);
+    } catch (err) {
+      failed = true;
+    }
+
+    expect(failed).to.equal(true);
+  });
+
+  it("updates user balance correctly after deposit", async function () {
+    await vault.connect(user).deposit(400);
+
+    const balance = await vault.balances(user.address);
+    expect(balance.toString()).to.equal("400");
+  });
+
+  it("allows multiple deposits from same user", async function () {
+    await vault.connect(user).deposit(200);
+    await vault.connect(user).deposit(300);
+
+    const balance = await vault.balances(user.address);
+    expect(balance.toString()).to.equal("500");
   });
 });

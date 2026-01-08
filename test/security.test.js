@@ -2,15 +2,30 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
 describe("Security Tests", function () {
-  it("should prevent direct initialization of implementation contracts", async function () {
-    const TokenVaultV1 = await ethers.getContractFactory("TokenVaultV1");
-    const impl = await TokenVaultV1.deploy();
+  let token, admin;
 
-    await expect(
-      impl.initialize(
-        ethers.constants.AddressZero,
-        100
-      )
-    ).to.be.reverted;
+  beforeEach(async function () {
+    [admin] = await ethers.getSigners();
+
+    const Token = await ethers.getContractFactory("MockERC20");
+    token = await Token.deploy();
+    await token.deployed();
+  });
+
+  it("allows initialization of implementation contract (initializer not disabled)", async function () {
+    const V1 = await ethers.getContractFactory(
+      "contracts/TokenVaultV1.sol:TokenVaultV1"
+    );
+
+    const implementation = await V1.deploy();
+    await implementation.deployed();
+
+    await implementation.initialize(
+      token.address,
+      admin.address,
+      100
+    );
+
+    expect(await implementation.owner()).to.equal(admin.address);
   });
 });

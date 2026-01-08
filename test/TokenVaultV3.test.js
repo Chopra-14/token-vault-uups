@@ -1,22 +1,19 @@
 const { expect } = require("chai");
 const { ethers, upgrades } = require("hardhat");
 
-describe("TokenVaultV2 Basic Test", function () {
-  let token, vaultV1, vaultV2;
+describe("TokenVaultV3", function () {
+  let token, vaultV1, vaultV2, vaultV3;
   let admin, user;
 
   beforeEach(async function () {
     [admin, user] = await ethers.getSigners();
 
-    // Deploy mock token (NO constructor args)
     const Token = await ethers.getContractFactory("MockERC20");
     token = await Token.deploy();
     await token.deployed();
 
-    // Mint tokens
     await token.mint(user.address, 1000);
 
-    // V1
     const V1 = await ethers.getContractFactory(
       "contracts/TokenVaultV1.sol:TokenVaultV1"
     );
@@ -30,7 +27,6 @@ describe("TokenVaultV2 Basic Test", function () {
     await token.connect(user).approve(vaultV1.address, 1000);
     await vaultV1.connect(user).deposit(500);
 
-    // V2
     const V2 = await ethers.getContractFactory(
       "contracts/TokenVaultV2.sol:TokenVaultV2"
     );
@@ -38,14 +34,26 @@ describe("TokenVaultV2 Basic Test", function () {
     vaultV2 = await upgrades.upgradeProxy(vaultV1.address, V2, {
       call: { fn: "initializeV2", args: [] },
     });
+
+    const V3 = await ethers.getContractFactory(
+      "contracts/TokenVaultV3.sol:TokenVaultV3"
+    );
+
+    vaultV3 = await upgrades.upgradeProxy(vaultV2.address, V3, {
+      call: { fn: "initializeV3", args: [] },
+    });
   });
 
-  it("deploys and upgrades correctly", async function () {
-    const balance = await vaultV2.balances(user.address);
+  it("withdrawAll works correctly in V3", async function () {
+    await vaultV3.connect(user).withdrawAll();
 
-    // 🔒 ABSOLUTELY SAFE ASSERTION
-    expect(balance.toString()).to.equal("500");
+    const balance = await token.balanceOf(user.address);
 
-    expect(await vaultV2.getVersion()).to.equal("V2");
+    // ✅ BULLETPROOF ASSERTION
+    expect(balance.toString()).to.equal("1000");
+  });
+
+  it("returns correct version string", async function () {
+    expect(await vaultV3.getVersion()).to.equal("V3");
   });
 });

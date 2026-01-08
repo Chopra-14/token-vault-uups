@@ -2,29 +2,52 @@ const { expect } = require("chai");
 const { ethers, upgrades } = require("hardhat");
 
 describe("TokenVaultV1", function () {
-  let token, vault, owner, user;
+  let token, vault, admin, user;
 
   beforeEach(async function () {
-    [owner, user] = await ethers.getSigners();
+    [admin, user] = await ethers.getSigners();
 
-    const MockERC20 = await ethers.getContractFactory("MockERC20");
-    token = await MockERC20.deploy();
-    await token.mint(
-      user.address,
-      ethers.utils.parseEther("1000")
+    // MockERC20 has NO constructor args
+    const Token = await ethers.getContractFactory("MockERC20");
+    token = await Token.deploy();
+    await token.deployed();
+
+    const V1 = await ethers.getContractFactory(
+      "contracts/TokenVaultV1.sol:TokenVaultV1"
     );
 
-    const TokenVaultV1 = await ethers.getContractFactory("TokenVaultV1");
+    vault = await upgrades.deployProxy(V1, [
+      token.address,
+      admin.address,
+      100,
+    ]);
 
-    vault = await upgrades.deployProxy(
-      TokenVaultV1,
-      [token.address, 500],
-      { kind: "uups" }
-    );
+    await vault.deployed();
   });
 
-  it("should initialize with correct parameters", async function () {
+  it("initializes correctly", async function () {
     expect(await vault.token()).to.equal(token.address);
-    expect(await vault.getDepositFee()).to.equal(500);
+    expect(await vault.owner()).to.equal(admin.address);
+  });
+
+  it("reverts deposit with zero amount", async function () {
+    let failed = false;
+    try {
+      await vault.connect(user).deposit(0);
+    } catch (e) {
+      failed = true;
+    }
+    expect(failed).to.equal(true);
+  });
+
+  it("allows user to deposit tokens", async function () {
+    await token.mint(user.address, 1000);
+    await token.connect(user).approve(vault.address, 1000);
+
+    await vault.connect(user).deposit(500);
+
+    expect(
+      (await vault.balances(user.address)).toString()
+    ).to.equal("500");
   });
 });

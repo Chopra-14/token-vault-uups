@@ -2,47 +2,68 @@ const { expect } = require("chai");
 const { ethers, upgrades } = require("hardhat");
 
 describe("TokenVaultV3 Coverage", function () {
-  let token, vault, user;
+  let token, vaultV1, vaultV2, vaultV3;
+  let admin, user;
 
   beforeEach(async function () {
-    [, user] = await ethers.getSigners();
+    [admin, user] = await ethers.getSigners();
 
-    const MockERC20 = await ethers.getContractFactory("MockERC20");
-    token = await MockERC20.deploy();
-    await token.mint(user.address, ethers.utils.parseEther("100"));
+    const Token = await ethers.getContractFactory("MockERC20");
+    token = await Token.deploy();
+    await token.deployed();
 
-    const TokenVaultV1 = await ethers.getContractFactory("TokenVaultV1");
-    let proxy = await upgrades.deployProxy(
-      TokenVaultV1,
-      [token.address, 100],
-      { initializer: "initialize" }
+    await token.mint(user.address, 1000);
+
+    // ---------- V1 ----------
+    const V1 = await ethers.getContractFactory(
+      "contracts/TokenVaultV1.sol:TokenVaultV1"
     );
 
-    const TokenVaultV2 = await ethers.getContractFactory("TokenVaultV2");
-    proxy = await upgrades.upgradeProxy(proxy.address, TokenVaultV2);
-    await proxy.initializeV2(50);
+    vaultV1 = await upgrades.deployProxy(V1, [
+      token.address,
+      admin.address,
+      100,
+    ]);
 
-    const TokenVaultV3 = await ethers.getContractFactory("TokenVaultV3");
-    vault = await upgrades.upgradeProxy(proxy.address, TokenVaultV3);
-    await vault.initializeV3();
+    await token.connect(user).approve(vaultV1.address, 1000);
+    await vaultV1.connect(user).deposit(400);
 
-    await token.connect(user).approve(
-      vault.address,
-      ethers.utils.parseEther("100")
+    // ---------- V2 ----------
+    const V2 = await ethers.getContractFactory(
+      "contracts/TokenVaultV2.sol:TokenVaultV2"
     );
 
-    await vault.connect(user).deposit(
-      ethers.utils.parseEther("20")
+    vaultV2 = await upgrades.upgradeProxy(vaultV1.address, V2, {
+      call: { fn: "initializeV2", args: [] },
+    });
+
+    // ---------- V3 ----------
+    const V3 = await ethers.getContractFactory(
+      "contracts/TokenVaultV3.sol:TokenVaultV3"
     );
+
+    vaultV3 = await upgrades.upgradeProxy(vaultV2.address, V3, {
+      call: { fn: "initializeV3", args: [] },
+    });
+  });
+
+  it("preserves balance after V3 upgrade", async function () {
+    const bal = await vaultV3.balances(user.address);
+
+    // ✅ STRING comparison (100% reliable)
+    expect(bal.toString()).to.equal("400");
   });
 
   it("withdraw works in V3", async function () {
-    await vault.connect(user).withdraw(
-      ethers.utils.parseEther("5")
-    );
+    await vaultV3.connect(user).withdrawAll();
+
+    const userBalance = await token.balanceOf(user.address);
+
+    // ✅ STRING comparison
+    expect(userBalance.toString()).to.equal("1000");
+  });
+
+  it("returns correct version string", async function () {
+    expect(await vaultV3.getVersion()).to.equal("V3");
   });
 });
-
-
-
-

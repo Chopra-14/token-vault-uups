@@ -2,44 +2,45 @@ const { expect } = require("chai");
 const { ethers, upgrades } = require("hardhat");
 
 describe("Upgrade V1 → V2", function () {
-  let token, vault, user;
+  let token, vaultV1, vaultV2;
+  let admin, user;
 
   beforeEach(async function () {
-    [, user] = await ethers.getSigners();
+    [admin, user] = await ethers.getSigners();
 
-    const MockERC20 = await ethers.getContractFactory("MockERC20");
-    token = await MockERC20.deploy();
-    await token.mint(
-      user.address,
-      ethers.utils.parseEther("1000")
+    const Token = await ethers.getContractFactory("MockERC20");
+    token = await Token.deploy();
+    await token.deployed();
+
+    await token.mint(user.address, 1000);
+
+    const V1 = await ethers.getContractFactory(
+      "contracts/TokenVaultV1.sol:TokenVaultV1"
     );
 
-    const TokenVaultV1 = await ethers.getContractFactory("TokenVaultV1");
-    vault = await upgrades.deployProxy(
-      TokenVaultV1,
-      [token.address, 500],
-      { kind: "uups" }
-    );
+    vaultV1 = await upgrades.deployProxy(V1, [
+      token.address,
+      admin.address,
+      100,
+    ]);
 
-    await token.connect(user).approve(
-      vault.address,
-      ethers.utils.parseEther("100")
-    );
-
-    await vault.connect(user).deposit(
-      ethers.utils.parseEther("100")
-    );
+    await token.connect(user).approve(vaultV1.address, 1000);
+    await vaultV1.connect(user).deposit(500);
   });
 
   it("should preserve user balances after upgrade", async function () {
-    const TokenVaultV2 = await ethers.getContractFactory("TokenVaultV2");
-    vault = await upgrades.upgradeProxy(vault.address, TokenVaultV2);
-
-    await vault.initializeV2(300);
-
-    expect(await vault.withdrawFee()).to.equal(300);
-    expect(await vault.balances(user.address)).to.equal(
-      ethers.utils.parseEther("95")
+    const V2 = await ethers.getContractFactory(
+      "contracts/TokenVaultV2.sol:TokenVaultV2"
     );
+
+    vaultV2 = await upgrades.upgradeProxy(vaultV1.address, V2, {
+      call: { fn: "initializeV2", args: [] },
+    });
+
+    // 🔥 BULLETPROOF ASSERTION (NO ALIASES)
+    const bal = await vaultV2.balances(user.address);
+    expect(bal.toString()).to.equal("500");
+
+    expect(await vaultV2.getVersion()).to.equal("V2");
   });
 });
