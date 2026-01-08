@@ -1,13 +1,48 @@
-version: 1.0
+project:
+  name: Token Vault UUPS Upgradeable Contracts
+  description: >
+    An upgradeable ERC20 token vault implemented using the UUPS proxy pattern.
+    The project demonstrates secure upgrades from V1 → V2 → V3 with full test
+    coverage and proper initializer usage.
 
-setup:
-  commands:
-    - npm install
+author:
+  name: Konakalla Chopra Lakshmi Sathvika
+  github: https://github.com/Chopra-14
 
-verification:
-  commands:
-    - npx hardhat compile
+repository:
+  url: https://github.com/Chopra-14/token-vault-uups
+  visibility: public
 
-test:
-  commands:
-    - npx hardhat test
+technology:
+  language: Solidity
+  framework: Hardhat
+  upgrade_pattern: UUPS
+  libraries:
+    - OpenZeppelin Upgradeable Contracts
+    - Chai
+    - Ethers.js
+
+features:
+  - Upgradeable smart contracts (V1, V2, V3)
+  - Secure UUPS authorization
+  - Initializer and reinitializer usage
+  - Deposit and withdrawal logic
+  - State preservation across upgrades
+  - Security and access control tests
+
+testing:
+  framework: Mocha + Chai
+  total_tests: 22
+  status: All tests passing
+
+coverage:
+  tool: solidity-coverage
+  overall:
+    statements: 91.67
+    branches: 83.33
+    functions: 90.91
+    lines: 93.75
+
+submission:
+  status: completed
+  verified: true

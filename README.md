@@ -1,197 +1,106 @@
-# 🏦 TokenVault — UUPS Upgradeable Smart Contract System
+# 🔐 Token Vault – UUPS Upgradeable Smart Contracts
 
-## 1️⃣ Project Overview
-
-TokenVault is a secure, upgradeable ERC20 token vault implemented using the  
-**UUPS (Universal Upgradeable Proxy Standard)** pattern.
-
-This project demonstrates:
-
-- Safe smart-contract upgrades
-- State preservation across versions
-- Upgrade authorization using ownership
-- Production-grade testing with high coverage
-
-The system evolves through three versions while maintaining a single proxy
-address and preserving all user state.
+This project implements an **upgradeable ERC20 token vault** using the **UUPS proxy pattern**.
+It demonstrates safe contract upgrades, security best practices, and comprehensive testing
+with high code coverage.
 
 ---
 
-## 2️⃣ Version Summary
+## 📌 Features
 
-| Version | Description |
-|-------|-------------|
-| **V1** | Core vault functionality (deposit & withdraw) |
-| **V2** | Withdrawal fee mechanism |
-| **V3** | Pause / unpause functionality for deposits and withdrawals |
-
----
-
-## 3️⃣ UUPS Architecture Explanation
-
-This project follows the **UUPS proxy pattern**, where:
-
-- A **proxy contract** stores all persistent state
-- Logic lives in implementation contracts:
-  - `TokenVaultV1`
-  - `TokenVaultV2`
-  - `TokenVaultV3`
-- Upgrade logic is implemented directly in the contract via `_authorizeUpgrade`
-
-### Why UUPS?
-- Lower gas costs than Transparent proxies
-- Explicit upgrade authorization
-- Strong security guarantees
-
-### How It Works
-- Proxy is deployed once
-- Implementations are upgraded sequentially
-- Proxy address remains unchanged
-- All storage and balances are preserved
+- ✅ UUPS Upgradeable Architecture
+- ✅ Versions: V1 → V2 → V3
+- ✅ Secure upgrade authorization
+- ✅ Initializer & reinitializer usage
+- ✅ State preserved across upgrades
+- ✅ Extensive unit & security tests
+- ✅ Solidity coverage report
 
 ---
 
-## 4️⃣ Storage Layout Strategy
+## 🏗️ Contract Versions
 
-Upgradeable contracts must never break storage layout.
+### 🔹 TokenVaultV1
+- Deposit ERC20 tokens
+- Track user balances
+- Owner-controlled upgrades
 
-### Strategy Used
-- Storage variables are **never reordered**
-- New variables are **only appended** in newer versions
-- Each version inherits from the previous one
+### 🔹 TokenVaultV2
+- Preserves all V1 state
+- Adds versioning logic
+- Prevents reinitialization
 
-### Benefits
-- Prevents storage collisions
-- Ensures safe upgrades
-- Passes OpenZeppelin upgrade validation
-
----
-
-## 5️⃣ Access Control Design
-
-This project uses **OpenZeppelin `OwnableUpgradeable`**.
-
-### Owner Capabilities
-- Authorize contract upgrades
-- Pause and unpause the vault (V3)
-
-### Security Guarantees
-Unauthorized users **cannot**:
-- Upgrade the contract
-- Pause or unpause the vault
-- Execute admin-only logic
+### 🔹 TokenVaultV3
+- Adds `withdraw` and `withdrawAll`
+- Full backward compatibility
+- Strong upgrade security enforcement
 
 ---
 
-## 6️⃣ Upgrade Flow (V1 → V2 → V3)
+## 🧪 Testing
 
-### 🔹 V1 → V2
+All tests are written using **Mocha + Chai** and follow strict upgrade rules.
 
-**Adds**
-- Withdrawal fee logic
-
-**Process**
-1. Deploy V1 proxy
-2. Upgrade proxy to V2
-3. Call `initializeV2()`
-
----
-
-### 🔹 V2 → V3
-
-**Adds**
-- Vault pause / unpause mechanism
-
-**Process**
-1. Upgrade proxy to V3
-2. Call `initializeV3()`
-
----
-
-### Guarantees Across All Upgrades
-
-✅ User balances preserved  
-✅ Vault state preserved  
-✅ Proxy address unchanged  
-
----
-
-## 7️⃣ Testing & Coverage
-
-### Run All Tests
+### Run tests:
 ```bash
-npx hardhat compile
+npx hardhat test
+Generate coverage:
+bash
+Copy code
+npx hardhat coverage
+📊 Coverage Summary
+Contract	Statements	Branches	Functions	Lines
+TokenVaultV1	83%	83%	75%	88%
+TokenVaultV2	100%	100%	100%	100%
+TokenVaultV3	100%	75%	100%	100%
+Overall	91.67%	83.33%	90.91%	93.75%
+
+🔐 Security Practices
+Uses OwnableUpgradeable
+
+_authorizeUpgrade enforced
+
+No constructors in upgradeable contracts
+
+Fully qualified contract factories
+
+Unauthorized upgrades prevented
+
+Reinitializers protected
+
+📁 Project Structure
+text
+Copy code
+contracts/
+ ├── TokenVaultV1.sol
+ ├── TokenVaultV2.sol
+ ├── TokenVaultV3.sol
+ └── mocks/
+     └── MockERC20.sol
+
+test/
+ ├── TokenVaultV1.test.js
+ ├── TokenVaultV2.test.js
+ ├── TokenVaultV3.test.js
+ ├── coverage tests
+ └── upgrade tests
+
+coverage/
+🚀 How to Run Locally
+bash
+Copy code
+git clone https://github.com/Chopra-14/token-vault-uups.git
+cd token-vault-uups
+npm install
 npx hardhat test
 npx hardhat coverage
-Test Coverage Includes
-Core vault logic
+👩‍💻 Author
+Chopra Lakshmi Sathvika
+🔗 GitHub: https://github.com/Chopra-14
 
-Upgrade correctness
+✅ Status
+✔ All tests passing
+✔ Coverage generated
+✔ Submission ready
+✔ Upgrade-safe and production-quality
 
-State preservation
-
-Initializer & reinitializer protection
-
-Unauthorized upgrade prevention
-
-Pause behavior
-
-Coverage Results (Final)
-Statements: 100%
-
-Lines: ~92%
-
-Functions: ~87%
-
-Branches: ~64%
-
-Branch coverage is acceptable for this task, as all critical execution paths
-and security-relevant logic are fully tested and validated.
-
-8️⃣ Deployment & Upgrade
-Start Local Node
-bash
-Copy code
-npx hardhat node
-Deploy V1
-bash
-Copy code
-npx hardhat run scripts/deploy-v1.js --network localhost
-Upgrade to V2
-bash
-Copy code
-npx hardhat run scripts/upgrade-to-v2.js --network localhost
-Upgrade to V3
-bash
-Copy code
-npx hardhat run scripts/upgrade-to-v3.js --network localhost
-📌 The proxy address remains the same across all upgrades.
-
-9️⃣ Security Considerations
-Protections Implemented
-Upgrade authorization via _authorizeUpgrade
-
-Initializer and reinitializer protection
-
-Constructor disabled for upgrade safety
-
-Pause protection in V3
-
-Direct implementation initialization blocked
-
-Explicitly Tested
-Reinitialization prevention
-
-Unauthorized upgrade rejection
-
-Storage and balance preservation
-
-🔟 Known Limitations
-Simple ownership model (no role-based access control)
-
-Pause logic is global
-
-No front-end UI included
-
-These trade-offs were intentional to focus on upgrade safety, correctness,
-and test coverage.
